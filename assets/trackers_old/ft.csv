@@ -1,0 +1,9 @@
+File Type,Rigid Body Asset
+Version,1
+Name,ForceTorque
+ID,7850803938902544876
+Color,255,106,0
+Units,mm
+Point,Point 1,-59.290901,38.199303,-9.434660,None
+Point,Point 2,56.066700,40.976101,12.510000,None
+Point,Point 3,3.224220,-79.175301,-3.075370,None

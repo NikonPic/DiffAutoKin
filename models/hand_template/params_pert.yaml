@@ -1,0 +1,22 @@
+
+ZF_MCP_to_DAU_CMC:
+  axis: "0.3 0.9 -0.6"
+  pos: "0.3 -0.1 -0.3"
+DAU_CMC_to_DAU_MCP:
+  axis: "0.7 -0.7 -0.4"
+  pos: "0.1 -0.3 -0.2"
+DAU_MCP_to_DAU_PIP:
+  axis: "1.0 0.0 0.0"
+  pos: "0.0 0.0 0.0"
+DAU_PIP_to_DAU_DIP:
+  axis: "1.0 0.0 0.0"
+  pos: "0.0 0.0 0.0"
+ZF_MCP_to_ZF_PIP2:
+  axis: "1.0 0.0 0.0"
+  pos: "0.0 0.0 0.0"
+ZF_PIP2_to_ZF_PIP1:
+  axis: "1.0 0.0 0.0"
+  pos: "0.0 0.0 0.0"
+ZF_PIP1_to_ZF_DIP:
+  axis: "1.0 0.0 0.0"
+  pos: "0.0 0.0 0.0"

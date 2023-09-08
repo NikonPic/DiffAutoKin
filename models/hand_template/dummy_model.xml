@@ -1,0 +1,26 @@
+<mujoco model="hand model">
+    <compiler angle="radian" />
+    <option integrator="RK4" />
+
+    <worldbody>
+
+
+        <body name="b1"
+            pos="0.1 -0.2 0.3"
+            quat="0.9 0.01 0.03 0.02">
+
+            <body name="b2"
+                pos="-0.1 -0.1 0.1"
+                quat="0.99 0.04 0.0 0.0">
+
+
+                <joint name="ZF_PIP1_to_ZF_DIP" axis="0.3 0.7 0.4" limited="true"
+                    pos="0.2 0.1 0.3" range="-4 4" type="hinge" />
+
+                <body name="tip" pos="0.0 0.0 1.0" quat="1.0 0.0 0.0 0.0"/>
+            </body>
+        </body>
+
+
+    </worldbody>
+</mujoco>

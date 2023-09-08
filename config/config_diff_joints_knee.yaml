@@ -1,0 +1,30 @@
+data_path: ./measurement/dataset_knee.npy
+xml_path: ./models/knee/knee_model_template.xml
+yaml_path: ./models/knee/parameters_init.yaml
+use_cuda: true
+cuda_device: 0
+seed: 50
+epochs: 10
+warmup_epochs: 0
+logging_intervall: 100
+load_previous: false
+load_path: ./results/diffJoints_knee.pth
+save_path: ./results/diffJoints_knee.pth
+log_dir: ./src/trained_models
+batch_size: 512
+num_workers: 0
+shuffle: true
+lr_trafo: 1.0e-4
+lr_dec: 1.0e-4
+lr_enc: 1.0e-4
+enc_hidden:
+  - 256
+  - 256
+  - 128
+  - 64
+load_path_xml: ./models/knee/knee_model.xml
+save_path_xml: ./models/knee/knee_model_trained.xml
+learn_tmat: false
+learn_relative: false
+create_fake: false
+fake_params: ./models/knee/parameters_fake.yaml

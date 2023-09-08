@@ -1,0 +1,36 @@
+<mujoco model="knee model">
+    <compiler angle="radian" />
+    <option integrator="RK4" />
+
+    <worldbody>
+        <body name="tibia" pos="0.0 0.0 0.0" quat="1 0 0 0">
+
+            <body name="femur_0" pos="0.0 0.0 0.0" quat="1 0 0 0">
+
+                <joint armature="0.001" limited="true" name="TIBIA_TO_FEMUR_0"
+                    pos="{{TIBIA_TO_FEMUR_0.pos}}"
+                    axis="{{TIBIA_TO_FEMUR_0.axis}}"
+                    range="-2 2"
+                    type="hinge" />
+
+                <body name="femur_1" pos="0.0 0.0 0.0" quat="1 0 0 0">
+
+                    <joint armature="0.001" limited="true" name="FEMUR_0_TO_FEMUR_1"
+                        pos="{{FEMUR_0_TO_FEMUR_1.pos}}"
+                        axis="{{FEMUR_0_TO_FEMUR_1.axis}}"
+                        range="-2 2"
+                        type="hinge" />
+
+                    <body name="FEMUR" pos="0.0 0.0 0.0" quat="1 0 0 0">
+
+                        <joint armature="0.001" limited="true" name="FEMUR_1_TO_FEMUR_2"
+                            pos="{{FEMUR_1_TO_FEMUR_2.pos}}"
+                            axis="{{FEMUR_1_TO_FEMUR_2.axis}}"
+                            range="-2 2"
+                            type="hinge" />
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

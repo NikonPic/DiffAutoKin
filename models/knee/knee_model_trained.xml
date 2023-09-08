@@ -1,0 +1,66 @@
+<mujoco model="knee model">
+
+    <visual>
+        <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0" />
+        <rgba haze="0.15 0.25 0.35 1" />
+        <map znear="0.01" />
+    </visual>
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072" />
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300" />
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="10 10" reflectance="0.3" />
+        <material name="bone" reflectance="1" shininess="0" specular="0" rgba="0.68 0.64 0.57 1" />
+    </asset>
+    <default>
+        <default class="visual">
+            <geom type="mesh" contype="0" conaffinity="0" group="2" material="bone" rgba="0.68 0.64 0.57 1.0" />
+        </default>
+        <default class="tracker">
+            <geom type="mesh" contype="0" conaffinity="0" group="2" rgba="0.2 0.2 1 0.2" />
+        </default>
+    </default>
+
+    <compiler angle="radian" meshdir="../../assets/meshes_knee" texturedir="assets" />
+    <option integrator="RK4" />
+
+    <statistic center="-0.4 -0.4 0.2" extent="1.2" />
+
+    <visual>
+        <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0" />
+        <rgba haze="0.15 0.25 0.35 1" />
+        <map znear="0.01" />
+    </visual>
+
+    <asset>
+        <mesh file="tibia.stl" name="tibia mesh" scale="0.001 0.001 0.001" />
+        <mesh file="tracker tibia.stl" name="tibia tracker mesh" scale="0.001 0.001 0.001" />
+        <mesh file="fibula.stl" name="fibula mesh" scale="0.001 0.001 0.001" />
+        <mesh file="patella.stl" name="patella mesh" scale="0.001 0.001 0.001" />
+        <mesh file="femur.stl" name="femur mesh" scale="0.001 0.001 0.001" />
+        <mesh file="tracker femur.stl" name="femur tracker mesh" scale="0.001 0.001 0.001" />
+    </asset>
+
+
+    <worldbody>
+        <body name="tibia" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
+            <geom class="visual" euler="0 0 0" mesh="tibia mesh" pos="0 0 0" type="mesh" />
+            <geom class="visual" euler="0 0 0" mesh="fibula mesh" pos="0 0 0" type="mesh" />
+            <geom class="tracker" euler="0 0 0" mesh="tibia tracker mesh" pos="0 0 0" type="mesh" />
+
+            <inertial fullinertia="0.0008780700528212282 0.000882003973073614 0.00018810237832225102 -2.0773214139677317e-05 -0.00017248916504192767 -0.00011027907295235728" mass="0.4452526927806469" pos="0.035537882962384665 0.1738143285325765 -0.42422270065004697" />
+
+            <body name="FEMUR" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0">
+
+                <joint armature="0.001" axis="-0.046431918 0.997718 -0.049018584" limited="true" name="TIBIA_TO_FEMUR_0" pos="0.05165044 -0.07882 -0.32868078" range="-1 1" type="hinge" />
+                <joint armature="0.001" axis="-0.12744643 0.9849751 -0.116539106" limited="true" name="FEMUR_0_TO_FEMUR_1" pos="0.11591824 -0.4421027 -0.27381027" range="-1 1" type="hinge" />
+
+                <inertial fullinertia="0.0014471221093789871 0.0013713473639596421 0.00026087716802195016 7.836769453642076e-08 0.00014400130245007057 -4.208930881634612e-05" mass="0.5077506167421568" pos="0.04206533826380333 0.17074902085470534 -0.2976383647493416" />
+
+                <geom class="visual" euler="0 0 0" mesh="femur mesh" pos="0 0 0" type="mesh" />
+                <geom class="tracker" euler="0 0 0" mesh="femur tracker mesh" pos="0 0 0" type="mesh" />
+                <geom class="visual" euler="0 0 0" mesh="patella mesh" pos="0 0 0" type="mesh" />
+
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

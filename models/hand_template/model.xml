@@ -1,0 +1,74 @@
+<mujoco model="hand model">
+    <compiler angle="radian" autolimits="true" meshdir="../../assets/meshes" texturedir="assets" />
+    <option integrator="implicit" />
+
+    <asset>
+        <mesh file="Segmentation_ZF_DIP.stl" name="ZF-DIP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_ZF_PIP.stl" name="ZF-PIP1" scale="0.001 0.001 0.001" />
+        <mesh file="zf_mid2.stl" name="ZF-PIP2" scale="0.001 0.001 0.001" />
+        <mesh file="zf_mcp.stl" name="ZF-MCP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_DAU_Osmetacarpale_1.stl" name="DAU-MCP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_DAU_Phalax_proximalis.stl" name="DAU-PIP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_DAU_DIP.stl" name="DAU-DIP" scale="0.001 0.001 0.001" />
+        <mesh file="backhand.stl" name="BASE" scale="0.001 0.001 0.001" />
+        <mesh file="rest.stl" name="OTHER" scale="0.001 0.001 0.001" />
+    </asset>
+
+    <worldbody>
+
+
+        <body name="ZF_MCP" pos="0.17620367646591467 -0.005903444625591753 0.3628356140540645" quat="0.9495917939197236 0.2592798790757723 0.14791767632010086 -0.09575870852740219">
+
+            <geom class="zf" mesh="ZF-MCP" type="mesh" />
+            <geom class="base" mesh="BASE" type="mesh" />
+            <geom class="other" mesh="OTHER" type="mesh" />
+
+
+            <body name="DAU_MCP" pos="-0.0009733297722407741 -0.016606395993572436 0.013203568453270123" quat="0.9943462283715698 0.020508983176589547 0.06420367915643692 0.08205392930916784">
+                <geom class="dau" mesh="DAU-MCP" type="mesh" />
+
+                <joint armature="0.001" axis="0.3682366304728564 0.7986139899567369 -0.4760435684087948" limited="true" name="ZF_MCP_to_DAU_CMC" pos="0.05868601473520566 -0.19759587547230298 -0.21986515245037308" range="-1 1" type="hinge" />
+                <joint armature="0.001" axis="0.4997803015461226 -0.7320540449149288 -0.4629433286161044" limited="true" name="DAU_CMC_to_DAU_MCP" pos="0.052823806491388195 -0.1992836202982904 -0.2242866633462451" range="-0.2 1" type="hinge" />
+
+                <body name="DAU_PIP" pos="0.006597607401319934 0.005692156396961636 -0.004063291682216772" quat="0.9998344657876412 -0.010228438928553777 0.0009345748564418955 -0.015018209948745346">
+                    <geom class="dau" mesh="DAU-PIP" type="mesh" />
+
+                    <joint armature="0.001" axis="0.40277187478378623 -0.8742272690122207 -0.2711115987902194" limited="true" name="DAU_MCP_to_DAU_PIP" pos="0.07232823209912542 -0.204002629992187 -0.18459872569761973" range="-0.2 1" type="hinge" />
+
+                    <body name="DAU_DIP" pos="0.019846615771965104 0.0062637319439134845 4.985729243009019e-05" quat="0.9991378069061835 -0.002240422127798763 0.006912900201265252 -0.04087585020765087">
+                        <geom class="dau" mesh="DAU-DIP" type="mesh" />
+
+                        <joint armature="0.001" axis="0.2868369190909204 -0.8609968210871005 -0.42001078072394143" limited="true" name="DAU_PIP_to_DAU_DIP" pos="0.07857547955055834 -0.21284250108443298 -0.15199965041391605" range="-0.2 1" type="hinge" />
+                        <body name="DAU_TIP" />
+                    </body>
+                </body>
+            </body>
+
+
+            <body name="ZF_PIP2" pos="-0.05681330470781501 0.045579181974214705 -0.12097905722243993" quat="0.9545717945947939 -0.22374727893632648 -0.19425296263754305 0.031553615311116466">
+                <geom class="zf" mesh="ZF-PIP2" type="mesh" />
+
+                <joint armature="0.001" axis="0.8537163910836949 0.5207148159478054 0.004940045290855802" limited="true" name="ZF_MCP_to_ZF_PIP2" pos="0.042393464794939974 -0.17428384386933937 -0.1677056085414468" range="-0.4 1" type="hinge" />
+
+                <body name="ZF_PIP1" pos="0.0035058139319465343 -0.028415907847893287 0.03578303075214987" quat="0.995280924363944 0.08857938205036858 0.03474634812427974 0.019033285708313686">
+                    <geom class="zf" mesh="ZF-PIP1" type="mesh" />
+
+                    <joint armature="0.001" axis="0.8715247324352462 0.4903312975921131 0.004456383657784398" limited="true" name="ZF_PIP2_to_ZF_PIP1" pos="0.054582629429888445 -0.19437842495440008 -0.1293550383482385" range="-0.4 1" type="hinge" />
+
+                    <body name="ZF_DIP" pos="-0.00680048069279826 -0.01349979913849495 0.017965216916995503" quat="0.998934816863429 0.04221477999663421 0.002849840039574148 0.018412561462543154">
+                        <geom class="zf" mesh="ZF-DIP" type="mesh" />
+
+                        <joint armature="0.001" axis="0.8676489971882068 0.4115251406262877 0.27898436571036417" limited="true" name="ZF_PIP1_to_ZF_DIP" pos="0.061986142459955734 -0.21399234648210325 -0.12011497793113776" range="-0.4 1" type="hinge" />
+                        <body name="ZF_TIP" />
+                    </body>
+                </body>
+            </body>
+        </body>
+
+
+        <camera name="camera0" pos="0.375 0.069 0.146" xyaxes="-0.581 0.814 0.000 -0.114 -0.081 0.990" />
+        <camera name="camera1" pos="0.461 0.120 0.252" xyaxes="-0.593 0.805 -0.000 -0.358 -0.264 0.896" />
+        <camera name="camera2" pos="0.617 -0.002 0.149" xyaxes="-0.249 0.968 0.000 0.018 0.005 1.000" />
+
+    </worldbody>
+</mujoco>

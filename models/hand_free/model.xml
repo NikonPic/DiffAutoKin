@@ -1,0 +1,55 @@
+<mujoco model="hand model">
+    <compiler angle="radian" autolimits="true" meshdir="../../assets/meshes" texturedir="assets" />
+    <option integrator="implicit" />
+
+    <asset>
+        <mesh file="Segmentation_ZF_DIP.stl" name="ZF-DIP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_ZF_PIP.stl" name="ZF-PIP1" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_ZF_MCP.stl" name="ZF-PIP2" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_ZF_Mittelhand.stl" name="ZF-MCP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_DAU_Osmetacarpale_1.stl" name="DAU-MCP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_DAU_Phalax_proximalis.stl" name="DAU-PIP" scale="0.001 0.001 0.001" />
+        <mesh file="Segmentation_DAU_DIP.stl" name="DAU-DIP" scale="0.001 0.001 0.001" />
+    </asset>
+
+    <worldbody>
+
+
+        <body name="DAU_DIP" pos="0.19544032592236366 0.00855591365605406 0.35497822508424004" quat="0.9345963220689134 0.2211948240840308 0.2754725947812013 0.041441695165693626">
+            <geom class="dau" mesh="DAU-DIP" type="mesh" />
+        </body>
+
+        <body name="DAU_PIP" pos="0.17654004749965377 -0.0016625772111952984 0.36060542955427555" quat="0.9455293834720957 0.2473826471384519 0.21073298670184074 0.019173398273982428">
+            <geom class="dau" mesh="DAU-PIP" type="mesh" />
+        </body>
+
+        <body name="DAU_MCP" pos="0.16866059695703103 -0.019493614955643623 0.36620493153021455" quat="0.9427522857405032 0.2839805466518207 0.1747161343671061 -0.006888341324674084">
+            <geom class="dau" mesh="DAU-MCP" type="mesh" />
+        </body>
+
+
+        <body name="ZF_DIP" pos="0.11050426044874445 0.006923141511159742 0.3796463598511494" quat="0.9647008527853641 0.2577810468413862 0.03753219815228035 -0.03863328391954454">
+            <geom class="zf" mesh="ZF-DIP" type="mesh" />
+        </body>
+
+        <body name="ZF_PIP1" pos="0.1249856291827062 0.04238702604150254 0.35613075903915287" quat="0.9801946134865426 0.17845683233021517 0.03405041905066563 -0.0788178130190569">
+            <geom class="zf" mesh="ZF-PIP1" type="mesh" />
+        </body>
+
+        <body name="ZF_PIP2" pos="0.1261713980168844 0.07303119491421252 0.32939432828658965" quat="0.9912700827934753 0.09527156219033242 0.02240842223795785 -0.08834486407955938">
+            <geom class="zf" mesh="ZF-PIP2" type="mesh" />
+        </body>
+
+        <body name="ZF_MCP" pos="0.1758451844398884 -0.004741482253588231 0.36277805947946246" quat="0.9502666319427773 0.2573311084472402 0.14747593209357987 -0.09499935944296996">
+            <geom class="zf" mesh="ZF-MCP" type="mesh" />
+        </body>
+
+        
+
+
+        <camera name="camera0" pos="0.375 0.069 0.146" xyaxes="-0.581 0.814 0.000 -0.114 -0.081 0.990" />
+        <camera name="camera1" pos="0.461 0.120 0.252" xyaxes="-0.593 0.805 -0.000 -0.358 -0.264 0.896" />
+        <camera name="camera2" pos="0.617 -0.002 0.149" xyaxes="-0.249 0.968 0.000 0.018 0.005 1.000" />
+
+    </worldbody>
+</mujoco>

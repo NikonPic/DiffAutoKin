@@ -1,0 +1,10 @@
+TIBIA_TO_FEMUR_0:
+  axis: "1.0 0.0 0.0"
+  pos: "0.0 0.0 0.0"
+FEMUR_0_TO_FEMUR_1:
+  axis: "0.0 1.0 0.0"
+  pos: "0.0 0.0 0.0"
+FEMUR_1_TO_FEMUR_2:
+  axis: "0.0 0.0 1.0"
+  pos: "0.0 0.0 0.0"
+

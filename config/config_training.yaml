@@ -1,0 +1,42 @@
+data_path: ./measurement/kinematic_dataset.npy
+warmup_epochs: 400
+epochs: 10000
+batch_size: 256
+shuffle: true
+num_workers: 0
+logging_intervall: 100
+load_previous: false
+load_path: ./results/try2.pth
+save_path: ./results/try2.pth
+log_dir: ./src/trained_models
+use_cuda: false
+cuda_device: 0
+seed: 50
+
+dec_for_model:
+  lr: 1.0e-4
+  n_output: 96
+  model_path: ./models/hand_template
+  scene: model_template.xml
+  parameter: parameters.yaml
+  trained_parameters: parameters_trained.xml
+
+enc_inv_nn:
+  lr: 4.0e-4
+  n_input: 96 # num input array (num bodies x 16)
+  n_output: 7 # num joints
+  with_std: true
+  hidden_dims:
+    - 512
+    - 512
+    - 512
+
+dec_for_nn:
+  lr: 1.0e-4
+  n_input: 6 # num joints
+  n_output: 96 # num input array (num bodies x 16)
+  with_std: false
+  hidden_dims:
+    - 512
+    - 512
+    - 512

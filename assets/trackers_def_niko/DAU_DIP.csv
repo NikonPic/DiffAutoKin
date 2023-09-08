@@ -1,0 +1,11 @@
+File Type,Rigid Body Asset
+Version,1
+Name,M4_klein
+ID,16509037488816329197
+Color,146,0,168
+Units,mm
+Point,Point 1,0.265192,10.533900,-28.826101,None
+Point,Point 2,-24.473600,10.939301,3.176810,None
+Point,Point 3,11.589701,8.210390,13.372700,None
+Point,Point 4,-6.748710,-14.101800,14.816300,None
+Point,Point 5,19.367401,-15.581800,-2.539580,None
