@@ -1,5 +1,6 @@
 # %%
 from datetime import datetime
+import math
 import os
 from matplotlib import pyplot as plt
 import torch
@@ -16,6 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 from hydra.core.config_store import ConfigStore
 from config import DiffJointTraining
 from dm_control import mujoco
+import torch.nn.functional as F
 
 
 cs = ConfigStore.instance()
@@ -106,7 +108,8 @@ class Joint(nn.Module):
 
 
 class RigidBody(nn.Module):
-    def __init__(self, name, parent_name, joint_name, pos, quat, device, joint=None, joint_idx=None, subsequent_bodies=None):
+    def __init__(self, name, parent_name, joint_name, pos, quat, device, joint=None,
+                 joint_idx=None, subsequent_bodies=None):
         super(RigidBody, self).__init__()
         self.name = name
         self.parent_name = parent_name  # The name of the parent body
@@ -290,24 +293,85 @@ class ChainInitializer:
 
 
 class InverseKinematics(nn.Module):
-    def __init__(self, input_dim, n_joints, hidden_dims=[256, 256], activation=nn.LeakyReLU):
+    def __init__(self, input_dim, n_joints, hidden_dims=[256, 256], activation=nn.LeakyReLU,
+                 use_std=False, enc_sample_dim=16, use_ica=False):
         super(InverseKinematics, self).__init__()
 
+        self.use_std = use_std
+        self.use_ica = use_ica
+        self.n_joints = n_joints
+        self.enc_sample_dim = enc_sample_dim
         self.layers = nn.ModuleList()
         self.layers.append(nn.Linear(input_dim, hidden_dims[0]))
         for i in range(len(hidden_dims)-1):
             self.layers.append(activation())
             self.layers.append(nn.Linear(hidden_dims[i], hidden_dims[i+1]))
         self.layers.append(activation())
-        self.layers.append(nn.Linear(hidden_dims[-1], n_joints))
 
-    def forward(self, batch):
+        # if vae
+        if self.use_std:
+            init_stddev = torch.ones((input_dim,)) * math.log(5e-2)
+            self.log_stddev = nn.Parameter(init_stddev, requires_grad=True)
+            self.layers.append(nn.Linear(hidden_dims[-1], 2*enc_sample_dim))
+            # add a small submodule here for after gaussian
+            self.dec_start = nn.ModuleList()
+            self.dec_start.append(nn.Linear(enc_sample_dim, hidden_dims[-1]))
+            self.dec_start.append(activation())
+            self.dec_start.append(nn.Linear(hidden_dims[-1], n_joints))
+            self.dec_start.append(activation())
+        else:
+            self.layers.append(nn.Linear(hidden_dims[-1], n_joints))
+        
+        if use_ica:
+            W_init = torch.randn((n_joints, n_joints), requires_grad=True)
+            self.W = nn.Parameter(W_init)  # Unmixing matrix
+
+    def forward_network(self, batch):
         # Reshape the input batch to match the input dimension of the model
         batch = batch.view(batch.size(0), -1)
         for layer in self.layers:
             batch = layer(batch)
-        theta = torch.tanh(batch) * np.pi
-        return theta
+        return batch
+
+    def forward_network_dec(self, batch):
+        for layer in self.dec_start:
+            batch = layer(batch)
+        return batch
+
+    def forward(self, x, perform_sample=True):
+        batch = self.forward_network(x)
+        if not self.use_std:
+            return self.to_angle(batch)
+        theta, kl = self.forward_std(batch, perform_sample=perform_sample)
+        return theta, kl
+
+    def forward_std(self, batch, perform_sample=True):
+        # split for mu and std
+        mu = batch[:, : self.enc_sample_dim]
+        std = torch.exp(batch[:, self.enc_sample_dim:] / 2) + 1e-5
+
+        # get distributions
+        p = torch.distributions.Normal(
+            torch.zeros_like(mu), torch.ones_like(std))
+        q = torch.distributions.Normal(mu, std)
+
+        # sample
+        if perform_sample:
+            z = q.rsample()
+        else:
+            z = mu
+
+        # get kl divergence
+        kl = torch.distributions.kl_divergence(q, p).mean()
+
+        # apply rest of network
+        theta = self.forward_network_dec(z)
+        theta = self.to_angle(theta)
+
+        return theta, kl
+
+    def to_angle(self, theta):
+        return torch.tanh(theta) * np.pi
 
 
 class HomogeneousTransformation(nn.Module):
@@ -349,14 +413,27 @@ class HomogeneousTransformation(nn.Module):
 
 
 class PoseDataset(Dataset):
-    def __init__(self, dataset_path):
+    def __init__(self, dataset_path, valid_part=0.1, train_mode=True):
         super(PoseDataset, self).__init__()
         data_dict = np.load(dataset_path, allow_pickle=True).item()
-        self.data_dict = {key: torch.tensor(val)
-                          for key, val in data_dict.items()}
+
+        # Calculate the split index based on valid_part
+        first_key = list(data_dict.keys())[0]
+        split_idx = int((1 - valid_part) * data_dict[first_key].shape[0])
+
+        # Split the data based on train_mode
+        if train_mode:
+            self.data_dict = {key: torch.tensor(val[:split_idx])
+                              for key, val in data_dict.items()}
+        else:
+            self.data_dict = {key: torch.tensor(val[split_idx:])
+                              for key, val in data_dict.items()}
+
         self.keys = list(self.data_dict.keys())
         self.n_keys = len(self.keys)
         self.input_shape = self.n_keys * 16
+        self.valid_part = valid_part
+        self.train_mode = train_mode
 
     def __len__(self):
         # Assumes all arrays in the dictionary have the same number of time steps
@@ -402,7 +479,10 @@ def reconstruct_dict_from_batch(batch_tensor, keys):
 
 
 def calculate_mse(data_dict, transformations):
-    """Calculate the Mean Squared Error (MSE) between the data dictionary and the transformations dictionary."""
+    """
+    Calculate the Mean Squared Error (MSE) between the data
+    dictionary and the transformations dictionary.
+    """
     mse_loss = nn.MSELoss()
     mse_values = []
 
@@ -424,6 +504,7 @@ class TrainingSchedule:
     def __init__(self, cfg: DiffJointTraining):
         set_seed(cfg.seed)
         self.cfg = cfg
+        self.use_std = cfg.use_std
         self.dataset_path = cfg.data_path
         self.epochs = cfg.epochs
         self.batch_size = cfg.batch_size
@@ -431,12 +512,21 @@ class TrainingSchedule:
             f'cuda:{cfg.cuda_device}' if torch.cuda.is_available() and cfg.use_cuda else 'cpu')
 
         # Initialize data
-        self.dataset = PoseDataset(self.dataset_path)
+        self.dataset = PoseDataset(
+            self.dataset_path, valid_part=0, train_mode=True)
+        self.dataset_train = PoseDataset(
+            self.dataset_path, valid_part=cfg.valid_part, train_mode=True)
+        self.dataset_valid = PoseDataset(
+            self.dataset_path, valid_part=cfg.valid_part, train_mode=False)
+
         self.collator = Collator(self.device)
         self.dataloader = DataLoader(
-            self.dataset, batch_size=self.batch_size, shuffle=cfg.shuffle,
+            self.dataset_train, batch_size=self.batch_size, shuffle=cfg.shuffle,
             collate_fn=self.collator, num_workers=cfg.num_workers)
-        self.keys = self.dataset.keys
+        self.dataloader_valid = DataLoader(
+            self.dataset_valid, batch_size=self.batch_size, shuffle=cfg.shuffle,
+            collate_fn=self.collator, num_workers=cfg.num_workers)
+        self.keys = self.dataset_train.keys
         self.n_keys = len(self.keys)
 
         self.transf = HomogeneousTransformation(
@@ -448,7 +538,8 @@ class TrainingSchedule:
         self.decoder = chain_init.initialize_chain(self.device).to(self.device)
         self.num_joints = chain_init.num_joints
         self.encoder = InverseKinematics(
-            self.dataset.input_shape, chain_init.num_joints, cfg.enc_hidden).to(self.device)
+            self.dataset_train.input_shape, chain_init.num_joints, cfg.enc_hidden,
+            use_std=cfg.use_std, enc_sample_dim=cfg.enc_sample_dim, use_ica=cfg.use_ica).to(self.device)
 
         # Initialize the optimizer and loss function
         self.optimizer_dec = optim.Adam(
@@ -460,7 +551,8 @@ class TrainingSchedule:
         self.optimizer_transf = optim.Adam(
             self.transf.parameters(), lr=cfg.lr_trafo)
 
-        self.criterion = nn.MSELoss()
+        self.mse_loss = nn.MSELoss()
+        self.bce_loss = nn.BCELoss()
         self.setup_logging()
         self.saver = ChainSaver(cfg.load_path_xml, cfg.save_path_xml)
         self.learn_tmat = cfg.learn_tmat
@@ -510,71 +602,112 @@ class TrainingSchedule:
         assert input_tensor.shape == (batch_size, self.n_keys * 4 * 4)
         return input_tensor
 
+    def zero_all_optimizers(self):
+        self.optimizer_enc.zero_grad()
+        self.optimizer_dec.zero_grad()
+        self.optimizer_transf.zero_grad()
+    
+    def ica_regularization_v2(self, x_j):
+        term1 = -torch.sum(torch.log(torch.abs(torch.det(self.encoder.W))))
+        term2 = torch.sum(torch.log(torch.cosh(torch.mm(self.encoder.W, x_j.T))))
+        return term1 + term2
+
+    def ica_regularization(self, z):
+        m = z.size(0)
+        covariance = torch.mm(z.t(), z) / m
+        off_diagonal = covariance - \
+            torch.diag(torch.diag(covariance)).to(self.device)
+        penalty = torch.sum(off_diagonal**2)
+        return penalty
+
     def train(self):
         self.encoder.train()
         self.decoder.train()
         self.transf.train()
 
         train_count = 0
-        running_loss = 0.0
 
         for epoch in tqdm(range(self.epochs)):
-
             for _, batch in enumerate(self.dataloader):
                 train_count += 1
-                # Zero the parameter gradients
-                self.optimizer_enc.zero_grad()
-                self.optimizer_dec.zero_grad()
-                self.optimizer_transf.zero_grad()
-
-                batch_flat = self.batch_to_nn_input(batch)
+                self.zero_all_optimizers()
 
                 if self.learn_tmat:
                     batch = self.apply_transformation_to_batch(batch)
 
                 nn_input = self.batch_to_nn_input(batch)
-
-                # Forward pass
-                theta = self.encoder(nn_input)
-                # Decode the joint angles to get the transformation matrices
-                transformations, transformations_rel = self.decoder(
-                    theta, self.keys)
+                transformations, transformations_rel, theta, kl = self.forward_pass(
+                    nn_input)
 
                 if self.learn_relative:
                     transformations = transformations_rel
-
                 if self.learn_tmat:
                     transformations = self.apply_transformation_to_batch(
                         transformations)
-
                 nn_output = self.batch_to_nn_input(transformations)
+                loss, _, _ = self.compute_loss(nn_input, nn_output, theta, kl)
 
-                # Compute loss
-                loss = self.criterion(batch_flat, nn_output)
-                running_loss += float(loss)
-
-                # Backward pass and optimization
                 loss.backward()
                 self.optimizer_enc.step()
                 self.optimizer_transf.step()
-
                 if epoch > self.cfg.warmup_epochs:
                     self.optimizer_dec.step()
 
-                # Print statistics
-                running_loss += loss.item()
-                if train_count == self.cfg.logging_intervall:  # print every x mini-batches
-                    self.writer.add_scalar("main/loss", float(loss), epoch)
-                    self.writer.add_scalar(
-                        "main/running_loss", float(running_loss), epoch)
+                if train_count == self.cfg.logging_intervall:
+                    batch_valid = next(iter(self.dataloader_valid))
+                    nn_input_valid = self.batch_to_nn_input(batch_valid)
+                    transformations_valid, transformations_rel_valid, theta_valid, kl_valid = self.forward_pass(
+                        nn_input_valid, perform_sample=False)
+                    if self.learn_relative:
+                        transformations_valid = transformations_rel_valid
+                    if self.learn_tmat:
+                        transformations_valid = self.apply_transformation_to_batch(
+                            transformations_valid)
+                    nn_output_valid = self.batch_to_nn_input(
+                        transformations_valid)
+                    loss_valid, recon_loss_valid, ica_penalty_valid = self.compute_loss(
+                        nn_input_valid, nn_output_valid, theta_valid, kl_valid)
+                    self.log_metrics(epoch, recon_loss_valid, kl_valid,
+                                     recon_loss_valid, ica_penalty_valid, loss_valid, loss)
                     train_count = 0
-                    running_loss = 0
                     self.create_joint_trajectories(f'{train_count}')
+                    self.save_model()
 
         self.print_infos()
         print('Finished Training')
         self.save_model()
         self.create_joint_trajectories('learned')
+
+    def forward_pass(self, nn_input, perform_sample=True):
+        if self.use_std:
+            theta, kl = self.encoder(nn_input, perform_sample=perform_sample)
+        else:
+            theta = self.encoder(nn_input)
+        transformations, transformations_rel = self.decoder(theta, self.keys)
+        return transformations, transformations_rel, theta, kl if self.use_std else None
+
+    def compute_loss(self, nn_input, nn_output, theta, kl=None):
+        mse_loss = self.mse_loss(nn_input, nn_output)
+        if self.use_std:
+            dec = torch.distributions.Normal(nn_output, torch.exp(self.encoder.log_stddev) + 1e-5)
+            recon_loss = -torch.mean(dec.log_prob(nn_input))
+            return recon_loss + self.cfg.kl_fac * kl, mse_loss, kl
+        else:
+            if self.cfg.use_ica:
+                ica_penalty = self.ica_regularization(theta)
+                return mse_loss + ica_penalty, mse_loss, ica_penalty
+            else:
+                return mse_loss, mse_loss, None
+
+    def log_metrics(self, epoch, recon_loss, kl, mse_loss, ica_penalty, loss, train_loss):
+        if self.use_std:
+            self.writer.add_scalar("vae/recon_loss", float(recon_loss), epoch)
+            self.writer.add_scalar("vae/kl_loss", float(kl), epoch)
+        elif self.cfg.use_ica:
+            self.writer.add_scalar("decor/loss", float(ica_penalty), epoch)
+        self.writer.add_scalar("vae/mse_loss", float(mse_loss), epoch)
+        self.writer.add_scalar("main/loss", float(loss), epoch)
+        self.writer.add_scalar("main/train_loss", float(train_loss), epoch)
 
     def save_model(self):
         """Save the current state of the model to a file."""
@@ -601,48 +734,46 @@ class TrainingSchedule:
         data = next(iter(loc_dataloader))
         dataset_flat = self.batch_to_nn_input(data)
         dataset_flat = dataset_flat.to(self.device)
-        theta_whole = self.encoder(dataset_flat)
-        theta_plot = theta_whole.detach().cpu().numpy() * (180 / np.pi)
+
+        if self.use_std:
+            theta, _ = self.encoder(dataset_flat, perform_sample=False)
+        else:
+            theta = self.encoder(dataset_flat)
+
+        theta_plot = theta.detach().cpu().numpy() * (180 / np.pi)
         self.plot_joints(theta_plot, name)
 
     def plot_joints(self, theta_plot, name):
-
-        if theta_plot.shape[1] > 3:
+        plt.figure()
+        if theta_plot.shape[1] == 7:
             labels = ['DAU CMC', 'DAU MCP', 'DAU PIP',
-                    'DAU DIP', 'ZF MCP', 'ZF PIP', 'ZF DIP']
-            plt.figure()
+                      'DAU DIP', 'ZF MCP', 'ZF PIP', 'ZF DIP']
+
             ax1 = plt.subplot(211)
             for ind in range(0, 4):
-                arr = theta_plot[:, ind] - np.min(theta_plot[:, ind])
-                plt.plot(arr, label=labels[ind])
+                plt.plot(theta_plot[:, ind] -
+                         np.min(theta_plot[:, ind]), label=labels[ind])
             plt.ylabel('angle in °')
             plt.legend()
             plt.grid(0.25)
             ax2 = plt.subplot(212, sharex=ax1)
             for ind in range(4, 7):
-                arr = theta_plot[:, ind] - np.min(theta_plot[:, ind])
-                plt.plot(arr, label=labels[ind])
+                plt.plot(theta_plot[:, ind] -
+                         np.min(theta_plot[:, ind]), label=labels[ind])
             plt.legend()
             plt.grid(0.25)
             plt.xlabel('timesteps')
             plt.ylabel('angle in °')
             plt.tight_layout()
-            plt.savefig(f'./results/thetas_{name}.png')
-            plt.close()
-        
         else:
-            plt.figure()
-
             for ind in range(0, self.num_joints):
-                arr = theta_plot[:, ind] - np.min(theta_plot[:, ind])
-                plt.plot(arr)
-
+                plt.plot(theta_plot[:, ind])
             plt.grid(0.25)
+            plt.ylim([-90, 90])
             plt.xlabel('timesteps')
             plt.ylabel('angle in °')
-            plt.savefig(f'./results/thetas_{name}.png')
-            plt.close()
-
+        plt.savefig(f'./results/thetas_{name}.png')
+        plt.close()
 
     def test_model(self):
         theta = np.random.randn(1, self.num_joints)
@@ -688,9 +819,9 @@ class ChainSaver:
                     if joint.get('name') == rigid_body.joint_name:
                         # Update the position and axis of the joint
                         joint.set('pos', ' '.join(
-                                map(str, rigid_body.joint.pos.detach().cpu().numpy())))
+                            map(str, rigid_body.joint.pos.detach().cpu().numpy())))
                         joint.set('axis', ' '.join(
-                                map(str, rigid_body.joint.axis.detach().cpu().numpy())))
+                            map(str, rigid_body.joint.axis.detach().cpu().numpy())))
 
         # Save the updated XML structure back to the file
         tree.write(self.save_path)
@@ -701,7 +832,6 @@ class ChainSaver:
 
 @hydra.main(version_base=None, config_path="../config", config_name="config_diff_joints_knee")
 def main(cfg: DiffJointTraining):
-
     trainer = TrainingSchedule(cfg)
     trainer.print_infos()
     trainer.train()
