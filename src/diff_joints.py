@@ -17,7 +17,14 @@ from torch.utils.tensorboard import SummaryWriter
 from hydra.core.config_store import ConfigStore
 from config import DiffJointTraining
 from dm_control import mujoco
-import torch.nn.functional as F
+from pyvirtualdisplay import Display
+from PIL import Image
+import imageio
+
+# required for video rendering on remote server
+# make sure to isnall with: sudo apt-get install firefox xvfb
+display = Display(visible=0, size=(1080, 1080))
+display.start()
 
 
 cs = ConfigStore.instance()
@@ -554,10 +561,11 @@ class TrainingSchedule:
         self.mse_loss = nn.MSELoss()
         self.bce_loss = nn.BCELoss()
         self.setup_logging()
-        self.saver = ChainSaver(cfg.load_path_xml, cfg.save_path_xml)
+        self.saver = ChainSaver(cfg.load_path_xml, cfg.save_path_xml, cfg.videoname)
         self.learn_tmat = cfg.learn_tmat
         self.learn_relative = cfg.learn_relative
         self.fake = cfg.create_fake
+        self.generate_video = cfg.generate_video
 
         if self.cfg.load_previous:
             self.load_model()
@@ -672,11 +680,16 @@ class TrainingSchedule:
                     train_count = 0
                     self.create_joint_trajectories(f'{train_count}')
                     self.save_model()
+                    if self.generate_video:
+                        self.saver.render_frame()
+
 
         self.print_infos()
         print('Finished Training')
         self.save_model()
         self.create_joint_trajectories('learned')
+        if self.generate_video:
+            self.saver.save_video()
 
     def forward_pass(self, nn_input, perform_sample=True):
         if self.use_std:
@@ -791,9 +804,11 @@ class TrainingSchedule:
 
 
 class ChainSaver:
-    def __init__(self, xml_path, save_path):
+    def __init__(self, xml_path, save_path, videoname):
         self.xml_path = xml_path
         self.save_path = save_path
+        self.frames = []
+        self.videoname = videoname
 
     def update_xml(self, chain):
         # Parse the existing XML file
@@ -828,9 +843,34 @@ class ChainSaver:
 
     def save(self, chain):
         self.update_xml(chain)
+    
+    def render_frame(self):
+        """after the chain has been saved we can also use it to render a frame"""
+        with open(self.save_path, 'r') as file:
+            xml = file.read()
+
+        xml = xml.replace('meshdir="../../assets', 'meshdir="./assets')
+        model = mujoco.MjModel.from_xml_string(xml)
+        data = mujoco.MjData(model)
+        renderer = mujoco.Renderer(model, 1024, 1024)
+
+        scene_option = mujoco.MjvOption()
+        scene_option.flags[mujoco.mjtVisFlag.mjVIS_JOINT] = True
+
+        mujoco.mj_step(model, data)
+        renderer.update_scene(data, scene_option=scene_option, camera="camera0")
+        pixels = renderer.render()
+        image = Image.fromarray((pixels).astype(np.uint8))
+        self.frames.append(image)
+
+    def save_video(self, fps=30):
+        image_arrays = [np.array(img) for img in self.frames]
+        with imageio.get_writer(self.videoname, mode='I', fps=fps) as writer:
+            for image_array in image_arrays:
+                writer.append_data(image_array)
 
 
-@hydra.main(version_base=None, config_path="../config", config_name="config_diff_joints_knee")
+@hydra.main(version_base=None, config_path="../config", config_name="config_diff_joints")
 def main(cfg: DiffJointTraining):
     trainer = TrainingSchedule(cfg)
     trainer.print_infos()

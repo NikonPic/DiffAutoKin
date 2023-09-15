@@ -1,0 +1,37 @@
+data_path: ./measurement/kinematic_dataset_dict.npy
+xml_path: ./models/hand_template/hand_simple.xml
+yaml_path: ./models/hand_template/params_pert.yaml
+use_cuda: true
+cuda_device: 1
+seed: 52
+epochs: 5000
+warmup_epochs: 0
+logging_intervall: 100
+load_previous: false
+load_path: ./results/diffJoints.pth
+save_path: ./results/diffJoints.pth
+log_dir: ./src/trained_models
+batch_size: 512
+num_workers: 0
+shuffle: true
+lr_trafo: 1.0e-4
+lr_dec: 1.0e-4
+lr_enc: 1.0e-4
+enc_hidden:
+  - 256
+  - 256
+  - 128
+  - 64
+enc_sample_dim: 32
+load_path_xml: ./models/hand_template/parameters_trained_v1.xml
+save_path_xml: ./models/hand_template/hand_model_trained.xml
+learn_tmat: false
+learn_relative: false
+create_fake: false
+fake_params: ./models/hand_template/params_pert.yaml
+use_std: true
+use_ica: false
+kl_fac: 0.1
+valid_part: 0.1
+generate_video: false
+videoname: test.mp4

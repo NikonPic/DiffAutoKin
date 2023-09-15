@@ -1,10 +1,20 @@
-# Towards Advanced Kinematic Modeling: Insights from Autoencoder Optimizations on Differentiable Joints
+# Accurate Kinematic Modeling using Autoencoders on Differentiable Joints
 
 This repository contains the research and implementation of a novel approach to kinematic optimization using autoencoders, with a focus on the hand and knee joints. The methodology leverages advanced regularization techniques, including Independent Component Analysis (ICA) and Variational Autoencoder (VAE), to ensure robustness and generalizability.
 
 ## Abstract
 
 We present a novel approach to kinematic optimization using autoencoders. Our model is capable of simultaneously solving the forward and inverse kinematics solutions for any given model and dataset. We've validated our approach on two distinct joints: the hand and the knee. Our findings highlight the model's ability to interpret joint limitations, especially in the knee with reduced degrees of freedom. The architecture is simple yet efficient, offering a fresh perspective on kinematic optimization.
+
+## How to Use
+
+- Install the "requirements.txt"
+- Modify the respective config file as desired for your train run.
+- Run "python src/diff_joints.py"
+
+## Results 
+<img src="./results/video.gif" alt="Knee Joint Analysis" width="800"/>
+
 
 ## Key Figures
 
@@ -19,11 +29,6 @@ We present a novel approach to kinematic optimization using autoencoders. Our mo
       <img src="./results/kinmodel.png" alt="Knee Joint Analysis" width="300"/>
       <br>
       <em>Figure 2: Forward Kinematics Model Visualization.</em>
-    </td>
-    <td>
-      <img src="./results/knee_analysis_axis_loss.png" alt="Joint Trajectories" width="300"/>
-      <br>
-      <em>Figure 3: Training progression for three model variations: 1-DOF (top), 2-DOF (middle), and 3-DOF (bottom).</em>
     </td>
   </tr>
 </table>
